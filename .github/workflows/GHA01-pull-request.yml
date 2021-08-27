@@ -49,7 +49,7 @@ jobs:
   # and produces a jUnit test report
   J03-test:
     runs-on: ubuntu-latest
-    needs: J02-build
+    needs: [J01-lint, J02-build]
     steps:
       - id: J03S01
         name: J03S01 git checkout
