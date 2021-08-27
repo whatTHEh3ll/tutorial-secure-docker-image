@@ -7,7 +7,7 @@ on:
 
 # env defines global variables for versioning and configuration
 env:
-  IMAGE_NAME: cloudbuild
+  IMAGE_NAME: secureimage
   TAG_NAME: "v${{ github.run_id }}"
   GOSS_VERSION: 0.3.16
   TF_VERSION: 0.15.4
@@ -93,7 +93,7 @@ jobs:
         with:
           image: "localbuild/${{ env.IMAGE_NAME }}:latest"
           fail-build: true
-          severity-cutoff: "medium"
+          severity-cutoff: "low"
   # J05-push publishes a release of the docker image
   # to the container repository
   J05-push:
