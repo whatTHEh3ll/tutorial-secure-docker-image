@@ -1,0 +1,3 @@
+# gossfile loads all goss tests from goss.d
+gossfile:
+  ./goss.d/*.yaml: {}

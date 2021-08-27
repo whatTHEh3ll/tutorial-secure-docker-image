@@ -1,0 +1,138 @@
+# GHA01 runs on pull request to the main branch
+name: GHA01-pull-request
+on:
+  pull_request:
+    branches:
+      - main
+
+# env defines global variables for versioning and configuration
+env:
+  IMAGE_NAME: cloudbuild
+  TAG_NAME: "test-${{ github.run_id }}"
+  GOSS_VERSION: 0.3.16
+  TF_VERSION: 0.15.4
+  TFSEC_VERSION: 0.39.37
+  TFLINT_VERSION: 0.28.1
+
+jobs:
+  # J01-lint performs a lint of the Dockerfile
+  J01-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - id: J01S01
+        name: J01S01 git checkout
+        uses: actions/checkout@v2
+      - id: J01S02
+        name: J01S02 lint dockerfile
+        run: make lint
+
+  # J02-build builds the Dockerfile and scans for security vulnerabilities
+  J02-build:
+    runs-on: ubuntu-latest
+    steps:
+      - id: J02S01
+        name: J02S01 git checkout
+        uses: actions/checkout@v2
+      - id: J02S02
+        name: J02S02 build docker image
+        run: make build
+      - id: J02S03
+        name: J02S03 save docker image
+        run: docker save -o /tmp/${{ env.IMAGE_NAME }}.tar localbuild/${{ env.IMAGE_NAME }}:latest
+      - id: J02S04
+        name: J02S04 upload docker image artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ env.IMAGE_NAME }}
+          path: /tmp/${{ env.IMAGE_NAME }}.tar
+  # J03-test runs the Goss test suite on the docker container
+  # and produces a jUnit test report
+  J03-test:
+    runs-on: ubuntu-latest
+    needs: J02-build
+    steps:
+      - id: J03S01
+        name: J03S01 git checkout
+        uses: actions/checkout@v2
+      - id: J032S02
+        name: J03S02 fetch docker artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ env.IMAGE_NAME }}
+          path: /tmp
+      - id: J03S03
+        name: J03S03 load docker image
+        run: docker load --input /tmp/${{ env.IMAGE_NAME }}.tar
+      - id: J03S04
+        name: J03S04 run test suite
+        run: make test
+      - id: J03S05
+        name: J03S05 publish test report
+        uses: mikepenz/action-junit-report@v2
+        with:
+          report_paths: '/tmp/goss-junit.xml'
+          require_tests: true
+          fail_on_failure: true
+  # J04-scan runs a security vulnerability scan on the docker image
+  J04-scan:
+    runs-on: ubuntu-latest
+    needs: J02-build
+    steps:
+      - id: J042S01
+        name: J04S01 fetch docker artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ env.IMAGE_NAME }}
+          path: /tmp
+      - id: J04S02
+        name: J04S02 load docker image
+        run: docker load --input /tmp/${{ env.IMAGE_NAME }}.tar
+      - id: J04S03
+        name: J04S03 security scan
+        uses: anchore/scan-action@v2
+        with:
+          image: "localbuild/${{ env.IMAGE_NAME }}:latest"
+          fail-build: true
+          severity-cutoff: "medium"
+  # J05-push publishes a test release of the docker image
+  # to the container repository
+  J05-push:
+    runs-on: ubuntu-latest
+    needs: [J03-test, J04-scan]
+    steps:
+      - id: J052S01
+        name: J05S01 fetch docker artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ env.IMAGE_NAME }}
+          path: /tmp
+      - id: J05S02
+        name: J05S02 load docker image
+        run: docker load --input /tmp/${{ env.IMAGE_NAME }}.tar
+      - id: J05S03
+        name: J05S03 login to docker registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: J05S04
+        name: J05S04 tag test docker image
+        run: docker tag localbuild/${{ env.IMAGE_NAME }}:latest ghcr.io/codebigger/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }}
+      - id: J05S05
+        name: J05S05 push test docker image
+        run: |
+          docker image push ghcr.io/codebigger/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }}
+          echo "##[set-output name=sha256;]$(docker inspect ghcr.io/codebigger/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }} | grep '"Id":' | awk -F\" '{print $4}')"
+      - id: J05S06
+        name: J05S06 docker image report
+        uses: actions/github-script@v4
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            github.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: "Testing Image Generated\nghcr.io/codebigger/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }}\n${{ steps.J05S05.outputs.sha256 }}"
+            })

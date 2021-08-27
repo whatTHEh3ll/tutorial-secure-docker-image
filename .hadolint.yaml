@@ -1,0 +1,6 @@
+ignored:
+  - DL3059  # Multiple consecutive RUN statements
+
+trustedRegistries:
+  - docker.io
+  - ghcr.io
