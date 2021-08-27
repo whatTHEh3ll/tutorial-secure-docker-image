@@ -70,7 +70,7 @@ jobs:
         name: J03S05 publish test report
         uses: mikepenz/action-junit-report@v2
         with:
-          report_paths: '/tmp/goss-junit.xml'
+          report_paths: 'goss-junit.xml'
           require_tests: true
           fail_on_failure: true
   # J04-scan runs a security vulnerability scan on the docker image
