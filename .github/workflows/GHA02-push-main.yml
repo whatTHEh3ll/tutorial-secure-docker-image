@@ -118,12 +118,12 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - id: J05S04
         name: J05S04 tag docker image
-        run: docker tag localbuild/${{ env.IMAGE_NAME }}:latest ghcr.io/codebigger/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }}
+        run: docker tag localbuild/${{ env.IMAGE_NAME }}:latest ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }}
       - id: J05S05
         name: J05S05 push docker image
         run: |
-          docker image push ghcr.io/codebigger/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }}
-          echo "##[set-output name=sha256;]$(docker inspect ghcr.io/codebigger/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }} | grep '"Id":' | awk -F\" '{print $4}')"
+          docker image push ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }}
+          echo "##[set-output name=sha256;]$(docker inspect ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }} | grep '"Id":' | awk -F\" '{print $4}')"
   # J06 creates a new tag and release
   J06-tag:
     runs-on: ubuntu-latest
@@ -146,4 +146,4 @@ jobs:
         with:
           tag_name: ${{ steps.J06S02.outputs.new_tag }}
           release_name: ${{ env.TAG_NAME }}
-          body: "Docker Image Details\nghcr.io/codebigger/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }}\n${{ steps.J05S05.outputs.sha256 }}"
+          body: "Docker Image Details\nghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }}\n${{ steps.J05S05.outputs.sha256 }}"
