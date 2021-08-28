@@ -93,7 +93,7 @@ jobs:
         with:
           image: "localbuild/${{ env.IMAGE_NAME }}:latest"
           fail-build: true
-          severity-cutoff: "low"
+          severity-cutoff: low
   # J05-push publishes a release of the docker image
   # to the container repository
   J05-push:
