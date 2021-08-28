@@ -89,7 +89,7 @@ jobs:
         run: docker load --input /tmp/${{ env.IMAGE_NAME }}.tar
       - id: J04S03
         name: J04S03 security scan
-        uses: anchore/scan-action@v2
+        uses: anchore/scan-action@main
         with:
           image: "localbuild/${{ env.IMAGE_NAME }}:latest"
           fail-build: true
@@ -103,43 +103,43 @@ jobs:
           sarif_file: ${{ steps.J04S03.outputs.sarif }}
   # J05-push publishes a test release of the docker image
   # to the container repository
-  J05-push:
-    runs-on: ubuntu-latest
-    needs: [J03-test, J04-scan]
-    steps:
-      - id: J052S01
-        name: J05S01 fetch docker artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: ${{ env.IMAGE_NAME }}
-          path: /tmp
-      - id: J05S02
-        name: J05S02 load docker image
-        run: docker load --input /tmp/${{ env.IMAGE_NAME }}.tar
-      - id: J05S03
-        name: J05S03 login to docker registry
-        uses: docker/login-action@v1
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - id: J05S04
-        name: J05S04 tag test docker image
-        run: docker tag localbuild/${{ env.IMAGE_NAME }}:latest ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }}
-      - id: J05S05
-        name: J05S05 push test docker image
-        run: |
-          docker image push ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }}
-          echo "##[set-output name=sha256;]$(docker inspect ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }} | grep '"Id":' | awk -F\" '{print $4}')"
-      - id: J05S06
-        name: J05S06 docker image report
-        uses: actions/github-script@v4
-        with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
-          script: |
-            github.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: "Testing Image Generated\nghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }}\n${{ steps.J05S05.outputs.sha256 }}"
-            })
+#  J05-push:
+#    runs-on: ubuntu-latest
+#    needs: [J03-test, J04-scan]
+#    steps:
+#      - id: J052S01
+#        name: J05S01 fetch docker artifact
+#        uses: actions/download-artifact@v2
+#        with:
+#          name: ${{ env.IMAGE_NAME }}
+#          path: /tmp
+#      - id: J05S02
+#        name: J05S02 load docker image
+#        run: docker load --input /tmp/${{ env.IMAGE_NAME }}.tar
+#      - id: J05S03
+#        name: J05S03 login to docker registry
+#        uses: docker/login-action@v1
+#        with:
+#          registry: ghcr.io
+#          username: ${{ github.repository_owner }}
+#          password: ${{ secrets.GITHUB_TOKEN }}
+#      - id: J05S04
+#        name: J05S04 tag test docker image
+#        run: docker tag localbuild/${{ env.IMAGE_NAME }}:latest ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }}
+#      - id: J05S05
+#        name: J05S05 push test docker image
+#        run: |
+#          docker image push ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }}
+#          echo "##[set-output name=sha256;]$(docker inspect ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }} | grep '"Id":' | awk -F\" '{print $4}')"
+#      - id: J05S06
+#        name: J05S06 docker image report
+#        uses: actions/github-script@v4
+#        with:
+#          github-token: ${{secrets.GITHUB_TOKEN}}
+#          script: |
+#            github.issues.createComment({
+#              issue_number: context.issue.number,
+#              owner: context.repo.owner,
+#              repo: context.repo.repo,
+#              body: "Testing Image Generated\nghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }}\n${{ steps.J05S05.outputs.sha256 }}"
+#            })
