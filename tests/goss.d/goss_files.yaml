@@ -1,0 +1,33 @@
+file:
+  # T01 terraform binary must be valid
+  /usr/local/bin/terraform:
+    exists: true
+    mode: "0755"
+    owner: root
+    group: root
+    filetype: file
+    sha256: 278a0f66c7404ceb426e6f2db7f0f3a1b5b3d8373e7024640e7bc238389bab74
+  # T02 tfsec binary must be valid
+  /usr/local/bin/tfsec:
+    exists: true
+    mode: "0755"
+    owner: root
+    group: root
+    filetype: file
+    sha256: fe0e1db0c31cd474fb667cdf8bbe4169c5cdbf190ad17c5c4f4f9113b0d710aa
+  # T03 tflint binary must be valid
+  /usr/local/bin/tflint:
+    exists: true
+    mode: "0755"
+    owner: root
+    group: root
+    filetype: file
+    sha256: b15ae5ce192c4af1747fbaf6d954274055c0212868d6f1db31b05f08d2b073ca
+  # T04 goss binary must be valid
+  /usr/local/bin/goss:
+    exists: true
+    mode: "0755"
+    owner: root
+    group: root
+    filetype: file
+    sha256: 827e354b48f93bce933f5efcd1f00dc82569c42a179cf2d384b040d8a80bfbfb

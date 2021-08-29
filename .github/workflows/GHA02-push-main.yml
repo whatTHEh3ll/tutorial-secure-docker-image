@@ -1,0 +1,157 @@
+# GHA02 runs on push to the main branch
+name: GHA02-push-main
+on:
+  push:
+    branches:
+      - main
+
+# env defines global variables for versioning and configuration
+env:
+  IMAGE_NAME: secureimage
+  TAG_NAME: "v${{ github.run_id }}"
+  GOSS_VERSION: 0.3.16
+  TF_VERSION: 0.15.4
+  TFSEC_VERSION: 0.39.37
+  TFLINT_VERSION: 0.28.1
+
+jobs:
+  # J01-lint performs a lint of the Dockerfile
+  J01-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - id: J01S01
+        name: J01S01 git checkout
+        uses: actions/checkout@v2
+      - id: J01S02
+        name: J01S02 lint dockerfile
+        run: make lint
+
+  # J02-build builds the Dockerfile and scans for security vulnerabilities
+  J02-build:
+    runs-on: ubuntu-latest
+    steps:
+      - id: J02S01
+        name: J02S01 git checkout
+        uses: actions/checkout@v2
+      - id: J02S02
+        name: J02S02 build docker image
+        run: make build
+      - id: J02S03
+        name: J02S03 save docker image
+        run: docker save -o /tmp/${{ env.IMAGE_NAME }}.tar localbuild/${{ env.IMAGE_NAME }}:latest
+      - id: J02S04
+        name: J02S04 upload docker image artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ env.IMAGE_NAME }}
+          path: /tmp/${{ env.IMAGE_NAME }}.tar
+  # J03-test runs the Goss test suite on the docker container
+  # and produces a jUnit test report
+  J03-test:
+    runs-on: ubuntu-latest
+    needs: [J01-lint, J02-build]
+    steps:
+      - id: J03S01
+        name: J03S01 git checkout
+        uses: actions/checkout@v2
+      - id: J032S02
+        name: J03S02 fetch docker artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ env.IMAGE_NAME }}
+          path: /tmp
+      - id: J03S03
+        name: J03S03 load docker image
+        run: docker load --input /tmp/${{ env.IMAGE_NAME }}.tar
+      - id: J03S04
+        name: J03S04 run test suite
+        run: make test
+      - id: J03S05
+        name: J03S05 publish test report
+        uses: mikepenz/action-junit-report@v2
+        with:
+          report_paths: 'goss-junit.xml'
+          require_tests: true
+          fail_on_failure: true
+  # J04-scan runs a security vulnerability scan on the docker image
+  J04-scan:
+    runs-on: ubuntu-latest
+    needs: J02-build
+    steps:
+      - id: J04S01
+        name: J03S01 git checkout
+        uses: actions/checkout@v2
+      - id: J042S02
+        name: J04S02 fetch docker artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ env.IMAGE_NAME }}
+          path: /tmp
+      - id: J04S03
+        name: J04S03 load docker image
+        run: docker load --input /tmp/${{ env.IMAGE_NAME }}.tar
+      - id: J04S04
+        name: J04S04 security scan
+        uses: anchore/scan-action@main
+        with:
+          image: "localbuild/${{ env.IMAGE_NAME }}:latest"
+          acs-report-enable: true
+      - id: J04S05
+        if: ${{ always() }}
+        name: J04S05 upload scan report
+        uses: github/codeql-action/upload-sarif@v1
+        with:
+          sarif_file: results.sarif
+  # J05-push publishes a release of the docker image
+  # to the container repository
+  J05-push:
+    runs-on: ubuntu-latest
+    needs: [J03-test, J04-scan]
+    steps:
+      - id: J052S01
+        name: J05S01 fetch docker artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ env.IMAGE_NAME }}
+          path: /tmp
+      - id: J05S02
+        name: J05S02 load docker image
+        run: docker load --input /tmp/${{ env.IMAGE_NAME }}.tar
+      - id: J05S03
+        name: J05S03 login to docker registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: J05S04
+        name: J05S04 tag docker image
+        run: docker tag localbuild/${{ env.IMAGE_NAME }}:latest ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }}
+      - id: J05S05
+        name: J05S05 push docker image
+        run: |
+          docker image push ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }}
+          echo "##[set-output name=sha256;]$(docker inspect ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }} | grep '"Id":' | awk -F\" '{print $4}')"
+  # J06 creates a new tag and release
+  J06-tag:
+    runs-on: ubuntu-latest
+    needs: [J05-push]
+    steps:
+      - id: J06S01
+        name: J06S01 git checkout
+        uses: actions/checkout@v2
+      - id: J06S02
+        name: J06S02 git tag
+        uses: mathieudutour/github-tag-action@v5.5
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          custom_tag: ${{ env.TAG_NAME }}
+      - id: J06S03
+        name: J06S03 create release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.J06S02.outputs.new_tag }}
+          release_name: ${{ env.TAG_NAME }}
+          body: "Docker Image Details\nghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }}\n${{ steps.J05S05.outputs.sha256 }}"

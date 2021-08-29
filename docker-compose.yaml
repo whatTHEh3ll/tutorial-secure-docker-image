@@ -1,0 +1,13 @@
+version: '3'
+
+services:
+  hadolint:
+    image: docker.io/hadolint/hadolint:v2.4.1-alpine
+    working_dir: /opt/app
+    volumes:
+      - .:/opt/app
+  localbuild:
+    image: localbuild/${IMAGE_NAME}:latest
+    working_dir: /opt/app
+    volumes:
+      - .:/opt/app
