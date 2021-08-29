@@ -2,7 +2,7 @@
 # This image has known security issues.
 # Therefore, it can be used to test the scan in the GitHub Actions pipeline.
 #FROM alpine@sha256:abd435b2a549002f78ec235cca4677237e6b8cfa9f7d15a2ea1e644596ff71d2
-FROM alpine:latest
+FROM alpine:3.14
 
 ARG GOSS_VERSION
 ARG TF_VERSION
