@@ -2,7 +2,7 @@ version: '3'
 
 services:
   hadolint:
-    image: docker.io/hadolint/hadolint:v3.17.1-alpine
+    image: docker.io/hadolint/hadolint:v2.4.1-alpine
     working_dir: /opt/app
     volumes:
       - .:/opt/app
