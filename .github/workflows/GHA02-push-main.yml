@@ -99,7 +99,7 @@ jobs:
       - id: J04S05
         if: ${{ always() }}
         name: J04S05 upload scan report
-        uses: github/codeql-action/upload-sarif@v1
+        uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: results.sarif
   # J05-push publishes a release of the docker image
